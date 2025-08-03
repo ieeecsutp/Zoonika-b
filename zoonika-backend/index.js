@@ -1,4 +1,3 @@
-
 // Backend básico con Express y Prisma para Zoonika
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
@@ -44,15 +43,43 @@ app.get('/galerias', async (req, res) => {
   res.json(galerias);
 });
 
-// Obtener detalle de una galería
+// Obtener detalle de una galería (mejorado con datos de usuario en comentarios)
 app.get('/galerias/:id', async (req, res) => {
   const id = parseInt(req.params.id);
-  const galeria = await prisma.galeria.findUnique({
-    where: { id },
-    include: { especialista: true, comentarios: true }
-  });
-  if (!galeria) return res.status(404).json({ error: 'No encontrada' });
-  res.json(galeria);
+  try {
+    const galeria = await prisma.galeria.findUnique({
+      where: { id },
+      include: { 
+        especialista: true, 
+        comentarios: {
+          include: {
+            usuario: {
+              select: { id: true, nombre: true, email: true } // Excluir password
+            }
+          }
+        }
+      }
+    });
+    if (!galeria) return res.status(404).json({ error: 'No encontrada' });
+    res.json(galeria);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Obtener un usuario por ID (sin password)
+app.get('/usuarios/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const usuario = await prisma.usuario.findUnique({ 
+      where: { id },
+      select: { id: true, nombre: true, email: true } // Excluir password
+    });
+    if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json(usuario);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 // Obtener todos los especialistas
