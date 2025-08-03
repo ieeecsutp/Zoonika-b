@@ -1,0 +1,46 @@
+// Esquema inicial para MySQL con Prisma
+// Recuerda configurar tu DATABASE_URL en .env
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+model Especialista {
+    id       Int       @id @default(autoincrement())
+    nombre   String
+    galerias Galeria[]
+}
+
+model Usuario {
+    id          Int          @id @default(autoincrement())
+    nombre      String
+    email       String       @unique
+    password    String
+    comentarios Comentario[]
+}
+
+model Galeria {
+    id             Int          @id @default(autoincrement())
+    imagenUrl      String
+    descripcion    String       @db.Text
+    fecha          DateTime     @default(now())
+    especialista   Especialista @relation(fields: [especialistaId], references: [id])
+    especialistaId Int
+    comentarios    Comentario[]
+}
+
+model Comentario {
+    id         Int      @id @default(autoincrement())
+    comentario String
+    valoracion Int
+    fecha      DateTime @default(now())
+    usuario    Usuario  @relation(fields: [usuarioId], references: [id])
+    usuarioId  Int
+    galeria    Galeria  @relation(fields: [galeriaId], references: [id])
+    galeriaId  Int
+}
