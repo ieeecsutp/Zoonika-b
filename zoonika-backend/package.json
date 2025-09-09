@@ -1,10 +1,13 @@
 {
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",
+    "@types/node": "^24.3.1",
+    "@types/react": "19.1.12",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
     "prisma": "^6.13.0",
-    "tailwindcss": "^4.1.11"
+    "tailwindcss": "^4.1.11",
+    "typescript": "^5.9.2"
   },
   "dependencies": {
     "@prisma/client": "^6.13.0",
@@ -14,8 +17,9 @@
   },
   "name": "zoonika-backend",
   "version": "1.0.0",
-  "main": "index.js",
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
