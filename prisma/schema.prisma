@@ -1,12 +1,9 @@
-// Esquema inicial para MySQL con Prisma
-// Recuerda configurar tu DATABASE_URL en .env
-
 generator client {
     provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "mysql"
+    provider = "postgresql"
     url      = env("DATABASE_URL")
 }
 

@@ -1,15 +1,17 @@
-import express, { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import express from 'express';
 import cors from 'cors';
-import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 import authRoutes from './routes/authRoutes';
 import galleryRoutes from './routes/galleryRoutes';
 import userRoutes from './routes/userRoutes';
 import specialistRoutes from './routes/specialistRoutes';
 import commentRoutes from './routes/commentRoutes';
+import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
-const prisma = new PrismaClient();
 
 app.use(cors());
 app.use(express.json());
@@ -24,7 +26,14 @@ app.use('/especialistas', specialistRoutes);
 
 app.use('/comentarios', commentRoutes);
 
+app.use(errorHandler);
+
 const PORT: number = parseInt(process.env.PORT || '4000', 10);
-app.listen(PORT, () => {
-  console.log(`Servidor backend escuchando en http://localhost:${PORT}`);
-});
+
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`Servidor backend escuchando en http://localhost:${PORT}`);
+  });
+}
+
+export default app;
