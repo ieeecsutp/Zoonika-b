@@ -1,12 +1,10 @@
 
 import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../db';
+import { getAllUsersFromDb, getUserByIdFromDb, updateUserInDb, deleteUserFromDb } from '../services/userService';
 
 export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const users = await prisma.usuario.findMany({
-      select: { id: true, nombre: true, email: true },
-    });
+    const users = await getAllUsersFromDb();
     res.json(users);
   } catch (e) {
     next(e);
@@ -16,10 +14,7 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
 export const getUserById = async (req: Request, res: Response, next: NextFunction) => {
   const id = parseInt(req.params.id);
   try {
-    const usuario = await prisma.usuario.findUnique({
-      where: { id },
-      select: { id: true, nombre: true, email: true } // Excluir password
-    });
+    const usuario = await getUserByIdFromDb(id);
     if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json(usuario);
   } catch (e) {
@@ -37,11 +32,7 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
   }
 
   try {
-    const updatedUser = await prisma.usuario.update({
-      where: { id: usuarioId },
-      data: { nombre, email },
-      select: { id: true, nombre: true, email: true },
-    });
+    const updatedUser = await updateUserInDb(usuarioId, nombre, email);
     res.json(updatedUser);
   } catch (e) {
     next(e);
@@ -57,7 +48,7 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
   }
 
   try {
-    await prisma.usuario.delete({ where: { id: usuarioId } });
+    await deleteUserFromDb(usuarioId);
     res.status(204).send();
   } catch (e) {
     next(e);
