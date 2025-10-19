@@ -1,108 +1,209 @@
-# Principios SOLID y Clean Code en el Backend de Zoonika
+# Guía de Arquitectura y Calidad del Backend de Zoonika
 
-Este documento describe cómo los principios SOLID y las prácticas de Clean Code se han aplicado en la refactorización y desarrollo del backend de Zoonika.
+Este documento detalla la arquitectura de software, los patrones de diseño y las prácticas de calidad implementadas en el backend de Zoonika, con un enfoque en los principios SOLID y Clean Code.
 
-## 1. Principio de Responsabilidad Única (SRP)
+## S – Single Responsibility Principle (SRP)
 
-La refactorización del backend usa SRP.
+Cada función o módulo debe tener una única y bien definida responsabilidad.
 
-*   **Rutas (`src/routes/`):** Su única responsabilidad es definir los endpoints y dirigir las solicitudes a los controladores adecuados.
+📌 **Evidencia:** La arquitectura del proyecto se ha estructurado en capas (rutas, controladores, servicios), donde cada capa tiene una responsabilidad clara.
+
+1.  **Capa de Rutas:** Define los endpoints y delega la gestión a los controladores.
 
     ```typescript
-    // src/routes/authRoutes.ts
+    // ✅ Correcto: src/routes/galleryRoutes.ts
     import { Router } from 'express';
-    import { register, login } from '../controllers/authController';
+    import { getAllGalleries, getGalleryById } from '../controllers/galleryController';
 
     const router = Router();
-
-    router.post('/register', register);
-    router.post('/login', login);
+    router.get('/', getAllGalleries);
+    router.get('/:id', getGalleryById);
 
     export default router;
     ```
-    *Explicación:* Este fragmento muestra cómo `authRoutes.ts` se limita a definir las rutas y a delegar la lógica a las funciones del controlador, sin contener ninguna lógica de negocio o de base de datos.
 
-*   **Controladores (`src/controllers/`):** Su responsabilidad principal es manejar la lógica de la solicitud HTTP (validación de entrada, orquestación de la lógica de negocio) y preparar la respuesta. Delegan las operaciones de base de datos a la capa de servicios.
+2.  **Capa de Controladores:** Orquesta el flujo de la petición HTTP y llama a los servicios. No contiene lógica de negocio compleja.
 
     ```typescript
-    // src/controllers/authController.ts (fragmento)
-    import { Request, Response, NextFunction } from 'express';
-    import { registerUser, findUserByEmail, comparePassword } from '../services/authService';
-
-    export const register = async (req: Request, res: Response, next: NextFunction) => {
-      const { nombre, email, password } = req.body;
+    // ✅ Correcto: src/controllers/galleryController.ts
+    export const getGalleryById = async (req: Request, res: Response, next: NextFunction) => {
+      const id = parseInt(req.params.id);
       try {
-        const user = await registerUser(nombre, email, password);
-        res.status(201).json(user);
+        const galeria = await galleryService.getGalleryDetailById(id);
+        if (!galeria) return res.status(404).json({ error: 'No encontrada' });
+        res.json(galeria);
       } catch (e) {
         next(e);
       }
     };
     ```
-    *Explicación:* Aquí, `authController.ts` recibe la solicitud, extrae los datos y llama a `registerUser` del servicio. El controlador no sabe cómo `registerUser` interactúa con la base de datos, solo que realiza el registro.
 
-*   **Servicios (`src/services/`):** Su responsabilidad es encapsular la lógica de negocio específica y las interacciones con la base de datos (Prisma), desacoplando los controladores de la implementación de la persistencia.
+3.  **Capa de Servicios:** Encapsula la lógica de negocio y la interacción con la base de datos.
 
     ```typescript
-    // src/services/authService.ts (fragmento)
-    import { prisma } from '../db';
-    import bcrypt from 'bcryptjs';
-
-    export const registerUser = async (nombre: string, email: string, passwordPlain: string) => {
-      const hashed = await bcrypt.hash(passwordPlain, 10);
-      const user = await prisma.usuario.create({
-        data: { nombre, email, password: hashed }
+    // ✅ Correcto: src/services/galleryService.ts
+    export const getGalleryDetailById = async (id: number) => {
+      return await prisma.galeria.findUnique({
+        where: { id },
+        include: { especialista: true, comentarios: { include: { usuario: true } } }
       });
-      return { id: user.id, nombre: user.nombre, email: user.email };
     };
     ```
-    *Explicación:* `authService.ts` contiene la lógica directa para interactuar con Prisma y `bcrypt` para el hasheo de contraseñas. Esta función tiene una única responsabilidad: registrar un usuario en la base de datos.
 
-## 2. Principio Abierto/Cerrado (OCP)
+## O – Open/Closed Principle (OCP)
 
-Se pueden añadir nuevas funcionalidades sin modificar el código existente en otras capas.
+El código debe estar abierto a la extensión, pero cerrado a la modificación.
 
-## 3. Principio de Sustitución de Liskov (LSP)
+📌 **Evidencia:** El uso de middlewares en Express permite añadir nuevas funcionalidades sin alterar los controladores existentes. Por ejemplo, para proteger las rutas de comentarios, simplemente añadimos `authMiddleware`.
 
-Se mantiene la coherencia en el uso de interfaces (como las de Express `Request`, `Response`, `NextFunction`) y tipos de datos, asegurando que los componentes se comporten como se espera.
+```typescript
+// ✅ Correcto: Se puede añadir nuevo middleware sin tocar el controlador 'createComment'
+import { Router } from 'express';
+import { createComment, updateComment } from '../controllers/commentController';
+import { authMiddleware } from '../middlewares/authMiddleware';
 
-## 4. Principio de Segregación de Interfaces (ISP)
+const router = Router();
 
-En TypeScript, se usa tipos específicos para las funciones y objetos, asegurando que los componentes solo dependan de la funcionalidad que realmente necesitan.
+// La ruta está "abierta" a añadir más middlewares (ej. un futuro validationMiddleware)
+router.post('/', authMiddleware, createComment);
+router.put('/:id', authMiddleware, updateComment);
+```
 
-## 5. Principio de Inversión de Dependencias (DIP)
+## L – Liskov Substitution Principle (LSP)
 
-Los servicios dependen de una abstracción (la instancia de Prisma) en lugar de una implementación concreta, facilitando el mocking en pruebas y la posible sustitución de la capa de persistencia.
+Los módulos o funciones intercambiables deben cumplir el mismo contrato.
 
-    ```typescript
-    // src/db.ts
-    import { PrismaClient } from '@prisma/client';
+📌 **Evidencia:** Aunque el proyecto no usa herencia de clases de forma extensiva, el principio se observa en cómo Express trata los controladores. Cualquier función que cumpla con la firma `(req, res, next)` puede ser usada como un controlador o middleware, haciéndolos sustituibles.
 
-    export const prisma = new PrismaClient();
-    ```
-    *Explicación:* `src/db.ts` exporta una única instancia de `PrismaClient`. Los servicios la importan y utilizan, lo que significa que dependen de una abstracción (la interfaz de `PrismaClient`) en lugar de una implementación específica de cómo se conecta a la base de datos.
+```typescript
+// ✅ Correcto: Ambas funciones cumplen el "contrato" de un controlador de Express
 
-## Clean Code
+// src/controllers/userController.ts
+export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
+  // ...
+};
 
-Además de SOLID, se han aplicado prácticas de Clean Code:
+// src/controllers/galleryController.ts
+export const getAllGalleries = async (req: Request, res: Response, next: NextFunction) => {
+  // ...
+};
+```
 
-*   **Manejo de Errores Centralizado:** La implementación de `errorHandler.ts` asegura que los errores se capturen y manejen de manera uniforme en toda la aplicación, mejorando la robustez y la experiencia del desarrollador.
+## I – Interface Segregation Principle (ISP)
 
-    ```typescript
-    // src/middlewares/errorHandler.ts
-    import { Request, Response, NextFunction } from 'express';
+Ningún cliente debe ser forzado a depender de interfaces (o módulos) que no utiliza.
 
-    export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
-      console.error(err.stack);
-      res.status(500).json({ error: 'Ocurrió un error inesperado en el servidor.' });
-    };
-    ```
-    *Explicación:* Este middleware captura cualquier error que se propague a través de `next(e)` en los controladores o servicios, proporcionando una respuesta estandarizada al cliente y registrando el error internamente.
+📌 **Evidencia:** En lugar de exportar una única clase monolítica por servicio, cada archivo de servicio exporta múltiples funciones pequeñas y específicas. Los controladores pueden importar únicamente las que necesitan.
 
-*   **Uso de TypeScript:** El uso de TypeScript añade tipado estático, lo que mejora la legibilidad, la mantenibilidad y ayuda a prevenir errores en tiempo de desarrollo.
+```typescript
+// ✅ Correcto: El servicio exporta funciones granulares.
+// src/services/authService.ts
+export const registerUser = async (...) => { /* ... */ };
+export const findUserByEmail = async (...) => { /* ... */ };
+export const comparePassword = async (...) => { /* ... */ };
 
-*   **Estructura de Carpetas Clara:** La organización en `routes`, `controllers`, `services`, `middlewares` y `db` proporciona una estructura lógica y fácil de navegar, siguiendo un patrón de capas que mejora la comprensión del proyecto.
+// ✅ Correcto: El controlador solo importa lo que necesita.
+// src/controllers/authController.ts
+import { registerUser } from '../services/authService'; // No necesita findUserByEmail aquí
 
-## Conclusión
+export const register = async (req: Request, res: Response, next: NextFunction) => {
+  // ... usa solo registerUser
+};
+```
 
-La refactorización y las nuevas implementaciones han transformado el backend de Zoonika en una aplicación más modular, mantenible, escalable y segura.
+## D – Dependency Inversion Principle (DIP)
+
+El código de alto nivel no debe depender de implementaciones concretas, sino de abstracciones.
+
+📌 **Evidencia:** Aunque no se usa inyección de dependencias por constructor, se aplica el principio al abstraer la creación del cliente de Prisma. Ningún servicio crea su propia instancia `new PrismaClient()`, sino que dependen de un módulo centralizado (`src/db.ts`).
+
+```typescript
+// Abstracción de la conexión a la BD
+// ✅ Correcto: src/db.ts
+import { PrismaClient } from '@prisma/client';
+export const prisma = new PrismaClient();
+
+// El servicio depende de la abstracción, no de la implementación
+// ✅ Correcto: src/services/userService.ts
+import { prisma } from '../db'; // Depende del módulo central
+
+export const getAllUsersFromDb = async () => {
+  return await prisma.usuario.findMany(...);
+};
+```
+Esto facilita las pruebas (se puede hacer mock de `src/db.ts`) y centraliza la configuración de la base de datos.
+
+---
+
+## Evidencias de Clean Code
+
+Se han aplicado buenas prácticas de legibilidad, modularidad y mantenibilidad.
+
+#### Nombres claros y significativos
+
+Los nombres de variables y funciones deben revelar su intención para que el código sea más fácil de leer y entender.
+
+```typescript
+// ❌ Malo
+const data = get(id);
+
+// ✅ Bueno: El nombre describe exactamente lo que hace la función y lo que contiene la variable.
+const gallery = await getGalleryDetailById(id);
+```
+
+#### Funciones pequeñas y concisas
+
+Cada función debe tener una única responsabilidad bien definida. Esto las hace más fáciles de entender, probar y reutilizar.
+
+```typescript
+// ✅ Bueno: La función solo se encarga de buscar un usuario por su email.
+// src/services/authService.ts
+export const findUserByEmail = async (email: string) => {
+  return await prisma.usuario.findUnique({ where: { email } });
+};
+```
+
+#### Evitar "Números Mágicos"
+
+Los valores literales codificados directamente (números o strings mágicos) deben ser evitados. Es mejor definirlos como constantes con un nombre claro, lo que mejora la legibilidad y el mantenimiento.
+
+```typescript
+// ❌ Malo
+const token = jwt.sign({ id: user.id }, 'your-secret-key', { expiresIn: '1h' });
+res.status(201).json(user);
+
+// ✅ Bueno: Usar constantes para valores recurrentes o importantes.
+const JWT_EXPIRATION_TIME = '1h';
+const HTTP_STATUS_CREATED = 201;
+
+const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRATION_TIME });
+res.status(HTTP_STATUS_CREATED).json(user);
+```
+*Nota: Aunque en el código actual aún se usan literales, esta es la práctica recomendada a seguir.*
+
+#### Código Asíncrono Legible con Async/Await
+
+El uso de `async/await` en lugar de cadenas de `.then()` y `.catch()` hace que el código asíncrono se lea de manera secuencial y sea mucho más fácil de seguir.
+
+```typescript
+// ❌ Malo (con promesas anidadas)
+findUserByEmail(email).then(user => {
+  if (user) {
+    comparePassword(password, user.password).then(valid => {
+      if (valid) {
+        // ... Lógica de login
+      }
+    });
+  }
+});
+
+// ✅ Bueno: El flujo es lineal y fácil de entender.
+// src/controllers/authController.ts
+const user = await findUserByEmail(email);
+if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
+
+const valid = await comparePassword(password, user.password);
+if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
+
+// ... Lógica de login
+```
