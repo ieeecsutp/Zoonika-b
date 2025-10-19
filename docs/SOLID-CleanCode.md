@@ -1,7 +1,5 @@
 # SOLID y Clean Code del Backend de Zoonika
 
-Este documento detalla la arquitectura de software, los patrones de diseño y las prácticas de calidad implementadas en el backend de Zoonika, con un enfoque en los principios SOLID y Clean Code.
-
 ## S – Single Responsibility Principle (SRP)
 
 Cada función o módulo debe tener una única y bien definida responsabilidad.
@@ -179,7 +177,6 @@ const HTTP_STATUS_CREATED = 201;
 const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRATION_TIME });
 res.status(HTTP_STATUS_CREATED).json(user);
 ```
-*Nota: Aunque en el código actual aún se usan literales, esta es la práctica recomendada a seguir.*
 
 #### Código Asíncrono Legible con Async/Await
 
