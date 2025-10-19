@@ -46,3 +46,4 @@ dist/
 build/
 
 instrucciones.md
+migrations/

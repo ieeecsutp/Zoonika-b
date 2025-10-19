@@ -27,6 +27,8 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const valid = await comparePassword(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
 
+    await recordLogin(user.id);
+
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
 
     res.json({ 

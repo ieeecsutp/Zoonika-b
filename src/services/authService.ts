@@ -17,3 +17,9 @@ export const findUserByEmail = async (email: string) => {
 export const comparePassword = async (passwordPlain: string, passwordHashed: string) => {
   return await bcrypt.compare(passwordPlain, passwordHashed);
 };
+
+export const recordLogin = async (usuarioId: number) => {
+  return await prisma.historialLogin.create({
+    data: { usuarioId }
+  });
+};
