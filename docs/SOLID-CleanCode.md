@@ -1,4 +1,4 @@
-# Guía de Arquitectura y Calidad del Backend de Zoonika
+# SOLID y Clean Code del Backend de Zoonika
 
 Este documento detalla la arquitectura de software, los patrones de diseño y las prácticas de calidad implementadas en el backend de Zoonika, con un enfoque en los principios SOLID y Clean Code.
 
